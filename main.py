@@ -4,6 +4,7 @@ Works on Android via yt-dlp
 """
 
 import os
+import sys
 import threading
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
@@ -17,6 +18,9 @@ from kivy.clock import Clock
 from kivy.core.window import Window
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.uix.widget import Widget
+
+# Add yt_dlp.zip to path so we can import it without it being a pip requirement
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'yt_dlp.zip'))
 
 # Android-specific storage path
 try:
