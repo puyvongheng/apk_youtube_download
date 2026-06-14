@@ -63,20 +63,46 @@ jobs:
           path: |
             ~/.android
             ~/.buildozer/android/platform
-          key: android-sdk-ndk-${{ runner.os }}-v3
+          key: android-sdk-ndk-${{ runner.os }}-v4
           restore-keys: |
             android-sdk-ndk-${{ runner.os }}-
 
-      # ── 7. Build APK (pipefail ensures errors are caught) ──
+      # ── 7. Pre-accept all Android SDK licenses ──
+      #    Buildozer's interactive license prompt fails in CI.
+      #    We pre-create the license files so sdkmanager skips the prompt.
+      - name: Pre-accept Android SDK licenses
+        run: |
+          SDK_LICENSES="$HOME/.buildozer/android/platform/android-sdk/licenses"
+          mkdir -p "$SDK_LICENSES"
+
+          # Standard SDK license (covers build-tools, platform-tools, etc.)
+          printf '\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee' \
+            > "$SDK_LICENSES/android-sdk-license"
+
+          # Preview license
+          printf '\n84831b9409646a918e30573bab4c9c91346d8abd' \
+            > "$SDK_LICENSES/android-sdk-preview-license"
+
+          # ARM DBT license
+          printf '\n859f317696f67ef3d7f30a50a5560e7834b43903' \
+            > "$SDK_LICENSES/android-sdk-arm-dbt-license"
+
+          # Intel extra license
+          printf '\nd975f751698a77b662f1254ddbeed3901e976f5a' \
+            > "$SDK_LICENSES/intel-android-extra-license"
+
+          echo "License files created:"
+          ls -la "$SDK_LICENSES/"
+
+      # ── 8. Build APK ──
       - name: Build APK
         run: |
           set -o pipefail
           buildozer -v android debug 2>&1 | tee build.log
-          echo "Build exit code: $?"
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
 
-      # ── 8. List output files for debugging ──
+      # ── 9. List output files for debugging ──
       - name: List build output
         if: always()
         run: |
@@ -86,7 +112,7 @@ jobs:
           echo "=== Searching for any .apk files ==="
           find . -name "*.apk" 2>/dev/null || echo "No .apk files found"
 
-      # ── 9. Upload APK ──
+      # ── 10. Upload APK ──
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -94,7 +120,7 @@ jobs:
           path: bin/*.apk
           if-no-files-found: error
 
-      # ── 10. Upload build log (always, for debugging) ──
+      # ── 11. Always upload build log ──
       - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
