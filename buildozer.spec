@@ -9,14 +9,11 @@ package.domain = org.kivyapp
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
 
-# Entry point
-entrypoint = main.py
-
 # Version
 version = 1.0
 
-# Requirements - yt-dlp included
-requirements = python3,kivy==2.3.0,yt-dlp
+# Requirements - Adding openssl, sqlite3, and certifi which are needed by yt-dlp
+requirements = python3,kivy==2.3.0,openssl,sqlite3,certifi,yt-dlp
 
 # Android settings
 android.permissions = INTERNET, WRITE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, MANAGE_EXTERNAL_STORAGE

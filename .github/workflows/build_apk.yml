@@ -45,7 +45,7 @@ jobs:
       - name: Install Buildozer and Cython
         run: |
           pip install --upgrade pip setuptools wheel
-          pip install buildozer cython
+          pip install buildozer cython==0.29.36
 
       # ── 5. Cache Buildozer global directory ──
       - name: Cache Buildozer global dir
@@ -73,26 +73,19 @@ jobs:
           SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
           CMDLINE_DIR="$SDK_DIR/cmdline-tools/latest"
 
-          # Only install if sdkmanager not already cached
           if [ ! -f "$CMDLINE_DIR/bin/sdkmanager" ]; then
             echo "Downloading Android cmdline-tools..."
             mkdir -p /tmp/cmdline-tools-dl
-            wget -q "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" \
-              -O /tmp/cmdline-tools.zip
+            wget -q "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" -O /tmp/cmdline-tools.zip
             unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools-dl
             mkdir -p "$CMDLINE_DIR"
             mv /tmp/cmdline-tools-dl/cmdline-tools/* "$CMDLINE_DIR/"
-            echo "cmdline-tools installed."
-          else
-            echo "cmdline-tools already cached, skipping download."
           fi
 
-          # Create legacy symlinks at tools/bin/ where buildozer looks
           mkdir -p "$SDK_DIR/tools/bin"
           ln -sf "$CMDLINE_DIR/bin/sdkmanager"  "$SDK_DIR/tools/bin/sdkmanager"  || true
           ln -sf "$CMDLINE_DIR/bin/avdmanager"  "$SDK_DIR/tools/bin/avdmanager"  || true
 
-          # Create license files manually to be absolutely sure
           SDK_LICENSES="$SDK_DIR/licenses"
           mkdir -p "$SDK_LICENSES"
           printf '\n8933bad161af4178b1185d1a37fbf41ea5269c55\nd56f5187479451eabf01fb78af6dfcb131a6481e\n24333f8a63b6825ea9c5514f83c2829b004d1fee' > "$SDK_LICENSES/android-sdk-license"
@@ -100,10 +93,7 @@ jobs:
           printf '\n859f317696f67ef3d7f30a50a5560e7834b43903' > "$SDK_LICENSES/android-sdk-arm-dbt-license"
           printf '\nd975f751698a77b662f1254ddbeed3901e976f5a' > "$SDK_LICENSES/intel-android-extra-license"
 
-          echo "Accepting SDK licenses..."
-          yes | "$CMDLINE_DIR/bin/sdkmanager" \
-            --sdk_root="$SDK_DIR" \
-            --licenses 2>/dev/null || true
+          yes | "$CMDLINE_DIR/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses 2>/dev/null || true
 
       # ── 8. Build APK ──
       - name: Build APK
@@ -115,13 +105,13 @@ jobs:
           ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
           ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
 
-      # ── 9. Print build errors inline if failed ──
+      # ── 9. Print EXACT build errors inline if failed ──
       - name: Print build errors
         if: failure()
         run: |
-          echo "==== LAST 500 LINES OF BUILD LOG ===="
-          tail -n 500 build.log
-          echo "==== END OF LOG ===="
+          echo "==== EXTRACTED ERRORS ===="
+          grep -B 5 -A 25 -i "error" build.log || true
+          echo "==== END OF ERRORS ===="
 
       # ── 10. List output files for debugging ──
       - name: List build output
