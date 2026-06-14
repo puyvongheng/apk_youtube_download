@@ -38,12 +38,13 @@ jobs:
             cmake \
             libffi-dev \
             libssl-dev \
-            ccache
+            ccache \
+            build-essential
 
       # ── 4. Install Buildozer & Cython ──
       - name: Install Buildozer and Cython
         run: |
-          pip install --upgrade pip setuptools
+          pip install --upgrade pip setuptools wheel
           pip install buildozer cython==0.29.36
 
       # ── 5. Cache Buildozer global directory ──
@@ -62,19 +63,30 @@ jobs:
           path: |
             ~/.android
             ~/.buildozer/android/platform
-          key: android-sdk-ndk-${{ runner.os }}-v2
+          key: android-sdk-ndk-${{ runner.os }}-v3
           restore-keys: |
             android-sdk-ndk-${{ runner.os }}-
 
-      # ── 7. Build APK ──
+      # ── 7. Build APK (pipefail ensures errors are caught) ──
       - name: Build APK
         run: |
+          set -o pipefail
           buildozer -v android debug 2>&1 | tee build.log
+          echo "Build exit code: $?"
         env:
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
-          ANDROID_SDK_ROOT: ${{ github.workspace }}/.buildozer/android/platform/android-sdk
 
-      # ── 8. Upload APK ──
+      # ── 8. List output files for debugging ──
+      - name: List build output
+        if: always()
+        run: |
+          echo "=== Contents of bin/ ==="
+          ls -la bin/ 2>/dev/null || echo "bin/ directory not found"
+          echo ""
+          echo "=== Searching for any .apk files ==="
+          find . -name "*.apk" 2>/dev/null || echo "No .apk files found"
+
+      # ── 9. Upload APK ──
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -82,10 +94,11 @@ jobs:
           path: bin/*.apk
           if-no-files-found: error
 
-      # ── 9. Upload build log on failure ──
-      - name: Upload build log on failure
-        if: failure()
+      # ── 10. Upload build log (always, for debugging) ──
+      - name: Upload build log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
           path: build.log
+          if-no-files-found: ignore
