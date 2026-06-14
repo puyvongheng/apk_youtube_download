@@ -3,7 +3,7 @@ name: Build Android APK
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:  # Allows manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build:
@@ -26,16 +26,24 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            git zip unzip openjdk-17-jdk \
-            python3-pip autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev \
-            libtinfo5 cmake libffi-dev libssl-dev \
-            ccache lld
+            git zip unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            ccache
 
       # ── 4. Install Buildozer & Cython ──
       - name: Install Buildozer and Cython
         run: |
-          pip install --upgrade pip
+          pip install --upgrade pip setuptools
           pip install buildozer cython==0.29.36
 
       # ── 5. Cache Buildozer global directory ──
@@ -54,27 +62,19 @@ jobs:
           path: |
             ~/.android
             ~/.buildozer/android/platform
-          key: android-sdk-ndk-${{ runner.os }}-v1
+          key: android-sdk-ndk-${{ runner.os }}-v2
           restore-keys: |
             android-sdk-ndk-${{ runner.os }}-
 
-      # ── 7. Accept Android SDK licenses ──
-      - name: Accept Android SDK licenses
-        run: |
-          mkdir -p ~/.android
-          touch ~/.android/repositories.cfg
-          yes | sdkmanager --licenses 2>/dev/null || true
-        continue-on-error: true
-
-      # ── 8. Build APK ──
+      # ── 7. Build APK ──
       - name: Build APK
         run: |
-          buildozer android debug 2>&1 | tee build.log
+          buildozer -v android debug 2>&1 | tee build.log
         env:
-          ANDROID_SDK_ROOT: ${{ github.workspace }}/.buildozer/android/platform/android-sdk
           JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_SDK_ROOT: ${{ github.workspace }}/.buildozer/android/platform/android-sdk
 
-      # ── 9. Upload APK as artifact ──
+      # ── 8. Upload APK ──
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -82,7 +82,7 @@ jobs:
           path: bin/*.apk
           if-no-files-found: error
 
-      # ── 10. Upload build log (on failure) ──
+      # ── 9. Upload build log on failure ──
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
