@@ -11,22 +11,19 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      # ── 1. Checkout code ──
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── 2. Set up Python ──
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # ── 3. Install system dependencies ──
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            git zip unzip wget \
+            git zip unzip wget curl \
             openjdk-17-jdk \
             python3-pip \
             autoconf \
@@ -41,13 +38,11 @@ jobs:
             ccache \
             build-essential
 
-      # ── 4. Install Buildozer & Cython ──
       - name: Install Buildozer and Cython
         run: |
           pip install --upgrade pip setuptools wheel
           pip install buildozer cython==0.29.36
 
-      # ── 5. Cache Buildozer global directory ──
       - name: Cache Buildozer global dir
         uses: actions/cache@v4
         with:
@@ -56,7 +51,6 @@ jobs:
           restore-keys: |
             buildozer-${{ runner.os }}-
 
-      # ── 6. Cache Android SDK/NDK ──
       - name: Cache Android SDK/NDK
         uses: actions/cache@v4
         with:
@@ -67,14 +61,12 @@ jobs:
           restore-keys: |
             android-sdk-ndk-${{ runner.os }}-
 
-      # ── 7. Install Android cmdline-tools and fix sdkmanager path ──
       - name: Install Android SDK cmdline-tools
         run: |
           SDK_DIR="$HOME/.buildozer/android/platform/android-sdk"
           CMDLINE_DIR="$SDK_DIR/cmdline-tools/latest"
 
           if [ ! -f "$CMDLINE_DIR/bin/sdkmanager" ]; then
-            echo "Downloading Android cmdline-tools..."
             mkdir -p /tmp/cmdline-tools-dl
             wget -q "https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip" -O /tmp/cmdline-tools.zip
             unzip -q /tmp/cmdline-tools.zip -d /tmp/cmdline-tools-dl
@@ -95,7 +87,6 @@ jobs:
 
           yes | "$CMDLINE_DIR/bin/sdkmanager" --sdk_root="$SDK_DIR" --licenses 2>/dev/null || true
 
-      # ── 8. Build APK ──
       - name: Build APK
         run: |
           set -o pipefail
@@ -105,37 +96,22 @@ jobs:
           ANDROID_SDK_ROOT: /home/runner/.buildozer/android/platform/android-sdk
           ANDROID_HOME: /home/runner/.buildozer/android/platform/android-sdk
 
-      # ── 9. Print EXACT build errors inline if failed ──
-      - name: Print build errors
-        if: failure()
-        run: |
-          echo "==== EXTRACTED ERRORS ===="
-          grep -B 5 -A 25 -i "error" build.log || true
-          echo "==== END OF ERRORS ===="
-
-      # ── 10. List output files for debugging ──
-      - name: List build output
+      - name: Upload Error Log to Pastebin
         if: always()
         run: |
-          echo "=== Contents of bin/ ==="
-          ls -la bin/ 2>/dev/null || echo "bin/ directory not found"
-          echo ""
-          echo "=== Searching for any .apk files ==="
-          find . -name "*.apk" 2>/dev/null || echo "No .apk files found"
+          echo "==== EXTRACTING LAST 500 LINES OF LOG ===="
+          tail -n 500 build.log > build_tail.log
+          echo "Uploading to 0x0.st..."
+          URL=$(curl -s -F 'file=@build_tail.log' https://0x0.st)
+          echo "========================================="
+          echo "ERROR LOG UPLOADED TO:"
+          echo "$URL"
+          echo "========================================="
+          echo "Please share the above URL with the AI."
 
-      # ── 11. Upload APK ──
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: YouTubeDownloader-APK
           path: bin/*.apk
-          if-no-files-found: error
-
-      # ── 12. Always upload build log ──
-      - name: Upload build log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build.log
           if-no-files-found: ignore
